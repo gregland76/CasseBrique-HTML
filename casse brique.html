@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casse-Brique</title>
+    <style>
+        /* Style pour le canvas et le message de victoire */
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #eee;
+            border: 1px solid #000;
+        }
+        #bravoMessage {
+            text-align: center;
+            font-size: 24px;
+            color: green;
+            font-weight: bold;
+            display: none; /* Caché par défaut */
+        }
+    </style>
+</head>
+<body>
+    <!-- Message de victoire -->
+    <div id="bravoMessage">Bravo ! Vous avez gagné !</div>
+    <!-- Canvas pour le jeu -->
+    <canvas id="gameCanvas" width="480" height="320"></canvas>
+    <script>
+        // Initialisation du canvas et du contexte de dessin
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Propriétés de la balle
+        let ballRadius = 10; // Rayon de la balle
+        let x = canvas.width / 2; // Position initiale en X
+        let y = canvas.height - 30; // Position initiale en Y
+        let dx = 2; // Vitesse en X
+        let dy = -2; // Vitesse en Y
+
+        // Propriétés de la raquette
+        const paddleHeight = 10; // Hauteur de la raquette
+        const paddleWidth = 75; // Largeur de la raquette
+        let paddleX = (canvas.width - paddleWidth) / 2; // Position initiale de la raquette
+
+        // Propriétés des briques
+        const brickRowCount = 5; // Nombre de rangées de briques
+        const brickColumnCount = Math.floor(canvas.width / (50 + 10)); // Nombre de colonnes de briques calculé dynamiquement
+        const brickWidth = 50; // Largeur d'une brique
+        const brickHeight = 20; // Hauteur d'une brique
+        const brickPadding = 10; // Espacement entre les briques
+        const brickOffsetTop = 0; // Décalage vertical des briques
+        const brickOffsetLeft = (canvas.width - (brickColumnCount * (brickWidth + brickPadding) - brickPadding)) / 2; // Centrer les briques horizontalement
+
+        // Création du tableau des briques
+        let bricks = [];
+        for (let c = 0; c < brickColumnCount; c++) {
+            bricks[c] = [];
+            for (let r = 0; r < brickRowCount; r++) {
+                bricks[c][r] = { x: 0, y: 0, status: 1 }; // Chaque brique est active (status = 1)
+            }
+        }
+
+        // Variables pour les contrôles
+        let rightPressed = false; // Flèche droite
+        let leftPressed = false; // Flèche gauche
+
+        // Gestion des événements clavier
+        document.addEventListener("keydown", keyDownHandler);
+        document.addEventListener("keyup", keyUpHandler);
+
+        function keyDownHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = true;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = true;
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key === "Right" || e.key === "ArrowRight") {
+                rightPressed = false;
+            } else if (e.key === "Left" || e.key === "ArrowLeft") {
+                leftPressed = false;
+            }
+        }
+
+        // Dessine la balle
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+            ctx.fillStyle = "#0095DD"; // Couleur de la balle
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Dessine la raquette
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+            ctx.fillStyle = "#0095DD"; // Couleur de la raquette
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Dessine les briques
+        function drawBricks() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status === 1) { // Si la brique est active
+                        const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                        const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                        ctx.fillStyle = `hsl(${(c * 360) / brickColumnCount}, 70%, 50%)`; // Couleur des briques basée sur la colonne
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        // Détection des collisions entre la balle et les briques
+        function collisionDetection() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    const b = bricks[c][r];
+                    if (b.status === 1) { // Si la brique est active
+                        if (
+                            x > b.x &&
+                            x < b.x + brickWidth &&
+                            y > b.y &&
+                            y < b.y + brickHeight
+                        ) {
+                            dy = -dy; // Inverse la direction de la balle
+                            b.status = 0; // Désactive la brique
+                        }
+                    }
+                }
+            }
+        }
+
+        // Vérifie si toutes les briques ont été détruites
+        function checkWin() {
+            for (let c = 0; c < brickColumnCount; c++) {
+                for (let r = 0; r < brickRowCount; r++) {
+                    if (bricks[c][r].status === 1) {
+                        return false; // Il reste des briques
+                    }
+                }
+            }
+            return true; // Toutes les briques ont été détruites
+        }
+
+        // Fonction principale de dessin
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Efface le canvas
+            drawBricks(); // Dessine les briques
+            drawBall(); // Dessine la balle
+            drawPaddle(); // Dessine la raquette
+            collisionDetection(); // Vérifie les collisions
+
+            if (checkWin()) { // Si toutes les briques sont détruites
+                document.getElementById("bravoMessage").style.display = "block"; // Affiche le message de victoire
+                return; // Arrête la boucle du jeu
+            }
+
+            // Vérifie les collisions avec les murs
+            if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+                dx = -dx; // Inverse la direction horizontale
+            }
+            if (y + dy < ballRadius) {
+                dy = -dy; // Inverse la direction verticale
+            } else if (y + dy > canvas.height - ballRadius) {
+                if (x > paddleX && x < paddleX + paddleWidth) {
+                    dy = -dy; // Inverse la direction si la balle touche la raquette
+                } else {
+                    document.location.reload(); // Recharge la page si la balle tombe
+                }
+            }
+
+            // Déplace la raquette
+            if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                paddleX += 7;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 7;
+            }
+
+            // Déplace la balle
+            x += dx;
+            y += dy;
+            requestAnimationFrame(draw); // Redessine le jeu
+        }
+
+        draw(); // Démarre le jeu
+    </script>
+</body>
+<footer>
+    <div style="text-align: center;">
+        <p>Jeu de Casse-Brique - Version 1.0</p>
+        <p>Développé par <a href="https://gregland.net" target="_blank">Grégory HARGOUS</a></p>
+    </div>
+</html>
